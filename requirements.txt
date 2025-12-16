@@ -1,0 +1,17 @@
+# Core dependencies
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-core>=0.1.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# HTTP requests for APIs
+requests>=2.31.0
+
+# FastAPI for API endpoints (Railway/Clay integration)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Optional: If you want to add other LLM providers
+# langchain-anthropic>=0.1.0
+# langchain-google-genai>=0.0.5
