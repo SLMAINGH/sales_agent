@@ -19,27 +19,9 @@ def get_company_news(company_name: str, limit: int = 5) -> Dict[str, Any]:
     """
     Fetches recent news articles about a company.
     Useful for finding timely conversation starters and understanding recent company developments.
+    Note: Currently not implemented. Requires news API integration (e.g., NewsAPI, Bing News API).
     """
-    # TODO: Implement with news API (e.g., NewsAPI, Bing News API)
-    # Mock data for testing
-    return {
-        "articles": [
-            {
-                "title": f"{company_name} raises $50M Series B",
-                "source": "TechCrunch",
-                "date": "2024-01-20",
-                "url": "https://techcrunch.com/...",
-                "summary": "Leading AI startup announces major funding round..."
-            },
-            {
-                "title": f"{company_name} launches new product",
-                "source": "VentureBeat",
-                "date": "2024-01-15",
-                "url": "https://venturebeat.com/...",
-                "summary": "Company unveils revolutionary AI-powered tool..."
-            }
-        ]
-    }
+    return {"error": "Company news API not yet implemented. Add NewsAPI or Bing News API integration."}
 
 
 class CompanyFundingInput(BaseModel):
@@ -52,27 +34,6 @@ def get_company_funding(company_name: str) -> Dict[str, Any]:
     """
     Fetches company funding information including total raised, investors, and funding rounds.
     Useful for understanding company stage and financial health.
+    Note: Currently not implemented. Requires Crunchbase API or similar integration.
     """
-    # TODO: Implement with Crunchbase API or similar
-    # Mock data for testing
-    return {
-        "total_funding": "$75M",
-        "last_round": {
-            "type": "Series B",
-            "amount": "$50M",
-            "date": "2024-01-20",
-            "investors": ["Sequoia Capital", "Andreessen Horowitz"]
-        },
-        "previous_rounds": [
-            {
-                "type": "Series A",
-                "amount": "$20M",
-                "date": "2022-06-15"
-            },
-            {
-                "type": "Seed",
-                "amount": "$5M",
-                "date": "2020-03-10"
-            }
-        ]
-    }
+    return {"error": "Company funding API not yet implemented. Add Crunchbase API or similar integration."}

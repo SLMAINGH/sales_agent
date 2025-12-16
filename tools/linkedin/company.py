@@ -18,28 +18,13 @@ def get_linkedin_company(company_name: str) -> Dict[str, Any]:
     """
     Fetches LinkedIn company page data including description, size, industry, headquarters, and recent updates.
     Useful for understanding company context, stage, and focus areas.
+    Requires RAPIDAPI_KEY environment variable.
     """
     api_key = os.getenv("RAPIDAPI_KEY")
     if not api_key:
-        # Mock data for testing
-        return {
-            "name": company_name,
-            "description": "Leading software company building AI-powered developer tools...",
-            "industry": "Software Development",
-            "company_size": "51-200 employees",
-            "headquarters": "San Francisco, CA",
-            "founded": "2019",
-            "specialties": ["AI/ML", "Developer Tools", "SaaS"],
-            "website": "https://example.com",
-            "recent_updates": [
-                {
-                    "text": "Excited to announce our Series B funding of $50M!",
-                    "date": "2024-01-20"
-                }
-            ]
-        }
+        return {"error": "RAPIDAPI_KEY not configured. Set RAPIDAPI_KEY environment variable to enable LinkedIn scraping."}
 
-    # Actual RapidAPI implementation
+    # RapidAPI implementation
     url = "https://linkedin-data-api.p.rapidapi.com/get-company"
     headers = {
         "X-RapidAPI-Key": api_key,
@@ -60,26 +45,13 @@ def get_company_posts(company_name: str) -> Dict[str, Any]:
     """
     Fetches recent posts from a company's LinkedIn page.
     Useful for finding timely conversation starters and understanding company priorities.
+    Requires RAPIDAPI_KEY environment variable.
     """
     api_key = os.getenv("RAPIDAPI_KEY")
     if not api_key:
-        # Mock data for testing
-        return {
-            "posts": [
-                {
-                    "text": "Join us at TechConf 2024! Our CEO will be speaking about the future of AI...",
-                    "date": "2024-01-18",
-                    "likes": 567
-                },
-                {
-                    "text": "We're hiring! Looking for senior engineers to join our AI team...",
-                    "date": "2024-01-15",
-                    "likes": 234
-                }
-            ]
-        }
+        return {"error": "RAPIDAPI_KEY not configured. Set RAPIDAPI_KEY environment variable to enable LinkedIn scraping."}
 
-    # Actual RapidAPI implementation
+    # RapidAPI implementation
     url = "https://linkedin-data-api.p.rapidapi.com/get-company-posts"
     headers = {
         "X-RapidAPI-Key": api_key,

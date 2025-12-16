@@ -268,6 +268,8 @@ async def process_lead_and_webhook(lead_input: WebhookLeadInput):
     Background task: Process lead and send results to webhook.
     """
     try:
+        logger.info(f"🚀 WEBHOOK PROCESSING START: {lead_input.name} at {lead_input.company_name}")
+
         # Convert input to internal Lead model
         lead = Lead(
             id=lead_input.id or f"lead_{lead_input.name.replace(' ', '_').lower()}",
@@ -276,9 +278,11 @@ async def process_lead_and_webhook(lead_input: WebhookLeadInput):
             company_name=lead_input.company_name,
             title=lead_input.title,
         )
+        logger.info(f"Lead ID: {lead.id}")
 
         # Initialize agent
         context = lead_input.campaign_context or DEFAULT_CAMPAIGN_CONTEXT
+        logger.info("Initializing SalesQualificationAgent...")
         agent = SalesQualificationAgent(
             campaign_context=context,
             model="gpt-4o-mini",
@@ -286,11 +290,12 @@ async def process_lead_and_webhook(lead_input: WebhookLeadInput):
             qualification_threshold=50,
         )
 
-        # Process lead
-        qualified_leads = await agent.process_leads([lead], verbose=False)
+        # Process lead (verbose=True to see all agent activity in logs)
+        logger.info("Starting lead processing...")
+        qualified_leads = await agent.process_leads([lead], verbose=True)
 
         if not qualified_leads:
-            # Send error to webhook
+            logger.error("No qualified leads returned!")
             error_response = {
                 "status": "error",
                 "lead_id": lead_input.id,
@@ -302,6 +307,9 @@ async def process_lead_and_webhook(lead_input: WebhookLeadInput):
         # Convert to output format
         result = convert_qualified_lead_to_output(qualified_leads[0])
 
+        logger.info(f"✅ Processing complete! Score: {qualified_leads[0].qualification.score}/100")
+        logger.info(f"Sending results to webhook: {lead_input.webhook_url}")
+
         # Add status field for webhook
         webhook_payload = {
             "status": "success",
@@ -310,9 +318,11 @@ async def process_lead_and_webhook(lead_input: WebhookLeadInput):
         }
 
         # Send results to webhook
-        requests.post(lead_input.webhook_url, json=webhook_payload, timeout=10)
+        webhook_response = requests.post(lead_input.webhook_url, json=webhook_payload, timeout=10)
+        logger.info(f"Webhook delivered: {webhook_response.status_code}")
 
     except Exception as e:
+        logger.error(f"❌ ERROR processing lead: {str(e)}", exc_info=True)
         # Send error to webhook
         error_response = {
             "status": "error",
@@ -321,8 +331,9 @@ async def process_lead_and_webhook(lead_input: WebhookLeadInput):
         }
         try:
             requests.post(lead_input.webhook_url, json=error_response, timeout=10)
-        except:
-            pass  # If webhook fails, nothing we can do
+            logger.info("Error sent to webhook")
+        except Exception as webhook_error:
+            logger.error(f"Failed to send error to webhook: {webhook_error}")
 
 
 @app.post("/qualify/webhook")
