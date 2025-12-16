@@ -3,11 +3,21 @@ FastAPI server for sales qualification agent - Clay integration.
 """
 import asyncio
 import os
+import logging
 from typing import Optional
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -73,6 +83,8 @@ class LeadOutput(BaseModel):
     qualification: QualificationOutput
     personalized_copy: Optional[PersonalizedCopyOutput]
     research_summary: ResearchSummaryOutput
+    execution_logs: Optional[list[str]] = None  # Verbose execution logs
+    processing_time_seconds: Optional[float] = None
 
 
 class BatchLeadsOutput(BaseModel):
@@ -119,7 +131,19 @@ app.add_middleware(
 )
 
 
-def convert_qualified_lead_to_output(ql: QualifiedLead) -> LeadOutput:
+class LogCapture:
+    """Capture logs during execution."""
+    def __init__(self):
+        self.logs = []
+
+    def log(self, message: str):
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log_entry = f"[{timestamp}] {message}"
+        self.logs.append(log_entry)
+        logger.info(message)
+
+
+def convert_qualified_lead_to_output(ql: QualifiedLead, logs: Optional[list[str]] = None, processing_time: Optional[float] = None) -> LeadOutput:
     """Convert internal QualifiedLead to API output format."""
     return LeadOutput(
         lead=LeadInput(
@@ -147,6 +171,8 @@ def convert_qualified_lead_to_output(ql: QualifiedLead) -> LeadOutput:
             company_highlights=ql.research_summary.company_highlights,
             recent_activity=ql.research_summary.recent_activity,
         ),
+        execution_logs=logs,
+        processing_time_seconds=processing_time,
     )
 
 
@@ -173,14 +199,23 @@ async def health():
 @app.post("/qualify", response_model=LeadOutput)
 async def qualify_single_lead(
     lead_input: LeadInput,
-    campaign_context: Optional[str] = None
+    campaign_context: Optional[str] = None,
+    verbose: bool = False
 ):
     """
     Qualify a single lead and generate personalized copy.
 
     Perfect for Clay's HTTP API enrichment - send one lead, get back qualification data.
+
+    Set verbose=true to get detailed execution logs in the response.
     """
+    import time
+    start_time = time.time()
+    log_capture = LogCapture()
+
     try:
+        log_capture.log(f"🚀 Starting qualification for: {lead_input.name} at {lead_input.company_name}")
+
         # Convert input to internal Lead model
         lead = Lead(
             id=lead_input.id or f"lead_{lead_input.name.replace(' ', '_').lower()}",
@@ -189,26 +224,42 @@ async def qualify_single_lead(
             company_name=lead_input.company_name,
             title=lead_input.title,
         )
+        log_capture.log(f"✓ Lead ID: {lead.id}")
 
         # Initialize agent
         context = campaign_context or DEFAULT_CAMPAIGN_CONTEXT
+        log_capture.log("⚙️  Initializing SalesQualificationAgent...")
         agent = SalesQualificationAgent(
             campaign_context=context,
             model="gpt-4o-mini",
             copy_model="gpt-4o",
             qualification_threshold=50,
         )
+        log_capture.log("✓ Agent initialized")
 
         # Process lead
-        qualified_leads = await agent.process_leads([lead], verbose=False)
+        log_capture.log("🔍 Starting lead processing (planning, research, qualification, copy generation)...")
+        qualified_leads = await agent.process_leads([lead], verbose=True)
 
         if not qualified_leads:
+            log_capture.log("❌ No qualified leads returned")
             raise HTTPException(status_code=500, detail="Failed to process lead")
 
+        log_capture.log(f"✅ Qualification complete! Score: {qualified_leads[0].qualification.score}/100")
+
+        processing_time = time.time() - start_time
+        log_capture.log(f"⏱️  Total processing time: {processing_time:.2f}s")
+
         # Convert to output format
-        return convert_qualified_lead_to_output(qualified_leads[0])
+        return convert_qualified_lead_to_output(
+            qualified_leads[0],
+            logs=log_capture.logs if verbose else None,
+            processing_time=processing_time
+        )
 
     except Exception as e:
+        log_capture.log(f"❌ Error: {str(e)}")
+        logger.error(f"Error processing lead {lead_input.name}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error processing lead: {str(e)}")
 
 
