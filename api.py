@@ -11,6 +11,7 @@ load_dotenv()
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import requests
 from agent.schemas import Lead, QualifiedLead
 from agent.sales_agent import SalesQualificationAgent
 
@@ -23,6 +24,17 @@ class LeadInput(BaseModel):
     company_name: str = Field(..., description="Company name")
     title: str = Field(..., description="Job title")
     id: Optional[str] = Field(None, description="Optional lead ID")
+
+
+class WebhookLeadInput(BaseModel):
+    """Input model for webhook-based async processing."""
+    name: str = Field(..., description="Full name of the lead")
+    linkedin_url: str = Field(..., description="LinkedIn profile URL")
+    company_name: str = Field(..., description="Company name")
+    title: str = Field(..., description="Job title")
+    webhook_url: str = Field(..., description="Webhook URL to send results to")
+    id: Optional[str] = Field(None, description="Optional lead ID")
+    campaign_context: Optional[str] = Field(None, description="Optional custom campaign context")
 
 
 class BatchLeadsInput(BaseModel):
@@ -198,6 +210,100 @@ async def qualify_single_lead(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing lead: {str(e)}")
+
+
+async def process_lead_and_webhook(lead_input: WebhookLeadInput):
+    """
+    Background task: Process lead and send results to webhook.
+    """
+    try:
+        # Convert input to internal Lead model
+        lead = Lead(
+            id=lead_input.id or f"lead_{lead_input.name.replace(' ', '_').lower()}",
+            name=lead_input.name,
+            linkedin_url=lead_input.linkedin_url,
+            company_name=lead_input.company_name,
+            title=lead_input.title,
+        )
+
+        # Initialize agent
+        context = lead_input.campaign_context or DEFAULT_CAMPAIGN_CONTEXT
+        agent = SalesQualificationAgent(
+            campaign_context=context,
+            model="gpt-4o-mini",
+            copy_model="gpt-4o",
+            qualification_threshold=50,
+        )
+
+        # Process lead
+        qualified_leads = await agent.process_leads([lead], verbose=False)
+
+        if not qualified_leads:
+            # Send error to webhook
+            error_response = {
+                "status": "error",
+                "lead_id": lead_input.id,
+                "error": "Failed to process lead"
+            }
+            requests.post(lead_input.webhook_url, json=error_response, timeout=10)
+            return
+
+        # Convert to output format
+        result = convert_qualified_lead_to_output(qualified_leads[0])
+
+        # Add status field for webhook
+        webhook_payload = {
+            "status": "success",
+            "lead_id": lead_input.id,
+            "data": result.dict()
+        }
+
+        # Send results to webhook
+        requests.post(lead_input.webhook_url, json=webhook_payload, timeout=10)
+
+    except Exception as e:
+        # Send error to webhook
+        error_response = {
+            "status": "error",
+            "lead_id": lead_input.id,
+            "error": str(e)
+        }
+        try:
+            requests.post(lead_input.webhook_url, json=error_response, timeout=10)
+        except:
+            pass  # If webhook fails, nothing we can do
+
+
+@app.post("/qualify/webhook")
+async def qualify_lead_webhook(lead_input: WebhookLeadInput, background_tasks: BackgroundTasks):
+    """
+    Qualify a lead asynchronously and send results to webhook URL.
+
+    Perfect for Clay when processing time might be too long for synchronous response.
+    Returns immediately with 202 Accepted, then sends results to webhook_url when done.
+
+    Request body must include:
+    - name, linkedin_url, company_name, title (lead data)
+    - webhook_url (where to send results)
+
+    The webhook will receive:
+    {
+        "status": "success" | "error",
+        "lead_id": "...",
+        "data": {...}  // Full LeadOutput if success
+        "error": "..."  // Error message if error
+    }
+    """
+    # Add processing task to background
+    background_tasks.add_task(process_lead_and_webhook, lead_input)
+
+    # Return immediately
+    return {
+        "status": "accepted",
+        "message": "Lead queued for processing. Results will be sent to webhook.",
+        "lead_id": lead_input.id or f"lead_{lead_input.name.replace(' ', '_').lower()}",
+        "webhook_url": lead_input.webhook_url
+    }
 
 
 @app.post("/qualify/batch", response_model=BatchLeadsOutput)
