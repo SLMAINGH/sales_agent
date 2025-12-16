@@ -96,21 +96,30 @@ class BatchLeadsOutput(BaseModel):
 
 # Default campaign context
 DEFAULT_CAMPAIGN_CONTEXT = """
-We're selling an AI-powered code review tool for engineering teams.
+We are selling Niteco's "Sitecore Modernization & XM Cloud Migration" services.
+
+Our Value Proposition:
+We help enterprises escape legacy Sitecore monolithic versions (XP 9/10) and migrate to a modern, composable stack (XM Cloud + Next.js) faster and with less risk than generalist agencies. We use a proprietary "Audit & Roadmap" methodology to guarantee fixed costs and timelines.
 
 Target Profile:
-- VPs/Directors of Engineering at Series A-C startups
-- Company size: 50-500 employees
-- Tech-forward companies building software products
-- Pain points: Code quality, review bottlenecks, onboarding new devs, scaling engineering processes
+- Role: CIOs, CTOs, VPs of Digital, and CMOs.
+- Company Size: Mid-to-Enterprise (Revenue $200M+, 500+ employees).
+- Industries: Manufacturing, Retail/Distribution, Healthcare, Finance.
+- Tech Stack: Currently running Sitecore XP (Versions 8.x, 9.x, or 10.x) on-premise or via Azure PaaS.
 
-Value Proposition:
-- Reduce code review time by 40%
-- Catch bugs before they reach production
-- Onboard new engineers 2x faster
-- Automated code quality insights
+Key Pain Points (The "Why Now"):
+1. "The Monolith Trap": High Azure infrastructure costs and slow deployment cycles on legacy Sitecore XP.
+2. "XM Cloud Anxiety": They know they need to move to SaaS/Headless (XM Cloud) but fear the complexity of rewriting the front-end (Next.js).
+3. "Performance Issues": Slow page loads affecting Core Web Vitals and SEO rankings.
+4. "Talent Gap": Struggle to find developers skilled in both legacy .NET Sitecore and modern React/Next.js.
 
-Pricing: Starting at $500/month for teams of 10-50 engineers
+The Offer (The Hook):
+A "Sitecore Modernization Audit." We will analyze their current codebase and infrastructure to provide a fixed-price/fixed-timeline roadmap to XM Cloud, de-risking the migration.
+
+Niteco Differentiators:
+- Deep .NET & Sitecore Gold Partner pedigree.
+- Proven "Upgrade Accelerator" methodology (similar to our Optimizely framework).
+- Global delivery model ensuring 24/7 progress and cost-efficiency.
 """
 
 
