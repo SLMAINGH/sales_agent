@@ -117,14 +117,20 @@ Each subtask typically maps to one tool call."""
         """Execute a single tool call and save result."""
         tool = self.tool_map.get(tool_name)
         if not tool:
-            print(f"Tool not found: {tool_name}")
+            print(f"❌ Tool not found: {tool_name}")
             return
 
         try:
             # Invoke tool
             result = await asyncio.to_thread(tool.invoke, args)
 
-            # Save to context manager
+            # Check if result contains an error
+            if isinstance(result, dict) and "error" in result:
+                print(f"⚠️  Tool {tool_name} returned error: {result['error']}")
+            else:
+                print(f"✓ Tool {tool_name} succeeded")
+
+            # Save to context manager (even if error - we want to know it failed)
             self.context_manager.save_context(
                 tool_name=tool_name,
                 args=args,
@@ -134,4 +140,14 @@ Each subtask typically maps to one tool call."""
                 company=company,
             )
         except Exception as e:
-            print(f"Tool execution failed for {tool_name}: {e}")
+            print(f"❌ Tool execution exception for {tool_name}: {e}")
+            # Save error result
+            error_result = {"error": f"Exception: {str(e)}"}
+            self.context_manager.save_context(
+                tool_name=tool_name,
+                args=args,
+                result=error_result,
+                task_id=task_id,
+                lead_id=lead_id,
+                company=company,
+            )

@@ -1,5 +1,5 @@
 """
-Company news and research tools.
+Company research tools using Perplexity AI.
 """
 import os
 import requests
@@ -8,32 +8,75 @@ from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 
 
-class CompanyNewsInput(BaseModel):
-    """Input for company news tool."""
-    company_name: str = Field(description="Company name to search for")
-    limit: int = Field(default=5, description="Number of news articles to fetch")
+class CompanyResearchInput(BaseModel):
+    """Input for company research tool."""
+    company_name: str = Field(description="Company name to research")
 
 
-@tool("get_company_news", args_schema=CompanyNewsInput)
-def get_company_news(company_name: str, limit: int = 5) -> Dict[str, Any]:
+@tool("research_company", args_schema=CompanyResearchInput)
+def research_company(company_name: str) -> Dict[str, Any]:
     """
-    Fetches recent news articles about a company.
-    Useful for finding timely conversation starters and understanding recent company developments.
-    Note: Currently not implemented. Requires news API integration (e.g., NewsAPI, Bing News API).
+    Research a company using Perplexity AI to find recent news, funding, products, and key developments.
+    Useful for understanding company context, recent events, and finding personalization hooks.
     """
-    return {"error": "Company news API not yet implemented. Add NewsAPI or Bing News API integration."}
+    api_key = os.getenv("PERPLEXITY_API_KEY")
+    if not api_key:
+        return {"error": "PERPLEXITY_API_KEY not configured. Set PERPLEXITY_API_KEY environment variable."}
 
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
 
-class CompanyFundingInput(BaseModel):
-    """Input for company funding tool."""
-    company_name: str = Field(description="Company name to search for")
+    # Craft a research query for Perplexity
+    query = f"""Research {company_name} company and provide:
+1. Recent news and announcements (last 3 months)
+2. Funding history and investors
+3. Main products/services
+4. Company size and growth
+5. Key executive changes or hires
+6. Any recent product launches or partnerships
 
+Focus on information that would be useful for personalized sales outreach."""
 
-@tool("get_company_funding", args_schema=CompanyFundingInput)
-def get_company_funding(company_name: str) -> Dict[str, Any]:
-    """
-    Fetches company funding information including total raised, investors, and funding rounds.
-    Useful for understanding company stage and financial health.
-    Note: Currently not implemented. Requires Crunchbase API or similar integration.
-    """
-    return {"error": "Company funding API not yet implemented. Add Crunchbase API or similar integration."}
+    payload = {
+        "model": "llama-3.1-sonar-small-128k-online",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a business research assistant. Provide concise, factual information about companies for sales intelligence purposes."
+            },
+            {
+                "role": "user",
+                "content": query
+            }
+        ],
+        "max_tokens": 1000,
+        "temperature": 0.2,
+        "return_citations": True
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        # Extract the research content
+        if "choices" in data and len(data["choices"]) > 0:
+            research_text = data["choices"][0]["message"]["content"]
+            citations = data.get("citations", [])
+
+            return {
+                "company_name": company_name,
+                "research": research_text,
+                "citations": citations,
+                "success": True
+            }
+        else:
+            return {"error": "No research results from Perplexity API"}
+
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"Perplexity API HTTP error {e.response.status_code}: {e.response.text[:200]}"}
+    except Exception as e:
+        return {"error": f"Failed to research company: {str(e)}"}

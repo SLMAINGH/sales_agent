@@ -93,35 +93,35 @@ Make it feel personal, relevant, and valuable. Show you did your research."""
 
         if "get_linkedin_activity" in profile_data:
             activity = profile_data["get_linkedin_activity"]
-            if isinstance(activity, dict) and activity.get('posts'):
+            # Only process if not an error
+            if isinstance(activity, dict) and "error" not in activity and activity.get('posts'):
                 activity_lines.append("Recent LinkedIn posts:")
                 for post in activity['posts'][:2]:  # Top 2
                     text = post.get('text', '')[:200]
                     date = post.get('date', 'recently')
                     activity_lines.append(f"  - {text}... (posted {date})")
 
-        return "\n".join(activity_lines) if activity_lines else "No recent activity found"
+        return "\n".join(activity_lines) if activity_lines else "No recent activity found - use title and company for personalization instead"
 
     def _extract_company_news(self, company_data: Dict[str, Any]) -> str:
         """Extract company news for timing/relevance."""
         news_lines = []
 
-        if "get_company_news" in company_data:
-            news = company_data["get_company_news"]
-            if isinstance(news, dict) and news.get('articles'):
-                news_lines.append("Recent company news:")
-                for article in news['articles'][:2]:
-                    title = article.get('title', '')
-                    date = article.get('date', '')
-                    news_lines.append(f"  - {title} ({date})")
+        # Perplexity company research (includes news, funding, recent developments)
+        if "research_company" in company_data:
+            research = company_data["research_company"]
+            if isinstance(research, dict) and "error" not in research and research.get('research'):
+                news_lines.append("Recent company developments:")
+                news_lines.append(research['research'][:500])  # First 500 chars for context
 
+        # Company posts from LinkedIn
         if "get_company_posts" in company_data:
             posts = company_data["get_company_posts"]
-            if isinstance(posts, dict) and posts.get('posts'):
+            if isinstance(posts, dict) and "error" not in posts and posts.get('posts'):
                 if not news_lines:
                     news_lines.append("Recent company updates:")
                 for post in posts['posts'][:2]:
                     text = post.get('text', '')[:150]
                     news_lines.append(f"  - {text}...")
 
-        return "\n".join(news_lines) if news_lines else "No recent news found"
+        return "\n".join(news_lines) if news_lines else "No recent news found - use company description and industry for context"
